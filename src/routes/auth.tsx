@@ -80,28 +80,10 @@ function LoginForm() {
 
     setLoading(true);
 
-    const { data: authData, error: authErr } = await supabase
-      .from("auth")
-      .select("email")
-      .eq("user_id", p.data.idNo)
-      .maybeSingle();
-
-    if (authErr) {
-      setLoading(false);
-      toast.error(authErr.message);
-      return;
-    }
-
-    if (!authData) {
-      setLoading(false);
-      toast.error("Invalid user ID or password. Please check and try again.");
-      return;
-    }
-
-    const { email: user_email } = authData;
+    const email = `${p.data.idNo.trim().toLowerCase()}@srgym.local`;
 
     const { data: signInData, error } = await supabase.auth.signInWithPassword({
-      email: user_email,
+      email,
       password: p.data.password,
     });
 

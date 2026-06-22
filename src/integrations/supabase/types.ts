@@ -17,24 +17,24 @@ export type Database = {
       auth: {
         Row: {
           created_at: string
-          email: string
           id: string
+          name: string | null
           password: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string
-          email: string
           id?: string
+          name?: string | null
           password: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string
-          email?: string
           id?: string
+          name?: string | null
           password?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
@@ -454,7 +454,6 @@ export type Database = {
         Args: {
           p_id_no: string
           p_password: string
-          p_email: string
         }
         Returns: Record<string, string>
       }

@@ -67,12 +67,14 @@ async function main() {
     if (error) throw error;
   }
 
+  const synthEmail = (id: string) => `${id.toLowerCase()}@srgym.local`;
+
   // Helper to insert into auth table
-  async function upsertAuth(userId: string, password: string, role: Role, email: string) {
+  async function upsertAuth(userId: string, password: string, role: Role) {
     await SUPABASE.from("auth").delete().eq("user_id", userId);
-    const { error } = await SUPABASE.from("auth").insert({ user_id: userId, password, role, email });
+    const { error } = await SUPABASE.from("auth").insert({ user_id: userId, password, role });
     if (error) throw error;
-    console.log(`  Auth: ${userId} / ${password} => ${email} (${role})`);
+    console.log(`  Auth: ${userId} / ${password} (${role})`);
   }
 
   // Helper: find existing auth user by email or create one
@@ -105,22 +107,22 @@ async function main() {
   // Create admin test user (admin123)
   console.log("  Creating admin123@...");
   const testAdminUser = await ensureAuthUser({
-    email: "admin123@srgym.local",
+    email: synthEmail("admin123"),
     password: "admintest",
     full_name: "Admin Test",
   });
   await upsertRole(testAdminUser.id, "admin");
-  await upsertAuth("admin123", "admintest", "admin", "admin123@srgym.local");
+  await upsertAuth("admin123", "admintest", "admin");
 
   // Create member test user (member123)
   console.log("  Creating member123@...");
   const testMemberUser = await ensureAuthUser({
-    email: "member123@srgym.local",
+    email: synthEmail("member123"),
     password: "membertest",
     full_name: "Member Test",
   });
   await upsertRole(testMemberUser.id, "member");
-  await upsertAuth("member123", "membertest", "member", "member123@srgym.local");
+  await upsertAuth("member123", "membertest", "member");
 
   console.log("\nSetup complete! You can now log in with:");
   console.log("  Admin:  admin123 / admintest");

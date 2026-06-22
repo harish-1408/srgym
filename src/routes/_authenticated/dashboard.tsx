@@ -36,6 +36,17 @@ function Dashboard() {
     enabled: !!user,
   });
 
+  const { data: authData } = useQuery({
+    queryKey: ["auth-name", user?.email],
+    queryFn: async () => {
+      const userId = user!.email!.split("@")[0];
+      return (await supabase.from("auth").select("name").eq("user_id", userId).maybeSingle()).data;
+    },
+    enabled: !!user,
+  });
+
+  const displayName = authData?.name ?? profile?.full_name?.split(" ")[0] ?? "Athlete";
+
   const { data: membership } = useQuery({
     queryKey: ["membership", user?.id],
     queryFn: async () => (await supabase.from("memberships").select("*, membership_plans(name)").eq("user_id", user!.id).order("end_date", { ascending: false }).limit(1).maybeSingle()).data,
@@ -107,7 +118,7 @@ function Dashboard() {
 
   return (
     <AppShell
-      title={`Hey, ${profile?.full_name?.split(" ")[0] ?? "Athlete"} 👋`}
+      title={`Hey, ${displayName} 👋`}
       subtitle="Your training command centre."
       notifCount={unread}
     >

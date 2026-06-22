@@ -137,16 +137,17 @@ async function main() {
   const COL_EMAIL = "email";
   const COL_FULLNAME = "full name";
 
+  const synthEmail = (id: string) => `${id.toLowerCase()}@srgym.local`;
+
   // 1) Create admin auth user and admin role (single admin id)
   const adminId = "ADMIN001";
   const adminPassword = "admintest";
 
   const adminRow = rows.find((r) => cleanCell(r[COL_IDNO]) === adminId);
-  const adminEmail = cleanCell(adminRow?.[COL_EMAIL]) || `admin001@${adminId.toLowerCase()}.local`;
   const adminFullName = cleanCell(adminRow?.[COL_FULLNAME]) || "SRGYM Admin";
 
   const adminUser = await ensureAuthUser({
-    email: adminEmail,
+    email: synthEmail(adminId),
     password: adminPassword,
     full_name: adminFullName,
   });
@@ -156,7 +157,7 @@ async function main() {
   const { error: profErrAdmin } = await SUPABASE.from("profiles").upsert(
     {
       id: adminUser.id,
-      email: adminEmail,
+      email: synthEmail(adminId),
       full_name: adminFullName,
       phone: "",
       address: "",
@@ -179,18 +180,11 @@ async function main() {
     const memberId = normalizeIdNo(idNoRaw);
     if (memberId === adminId) continue;
 
-    const email = cleanCell(r[COL_EMAIL]);
     const full_name = cleanCell(r[COL_FULLNAME]);
-
-    if (!email) {
-      console.warn(`Skipping member ${memberId}: missing ${COL_EMAIL} in Excel.`);
-      continue;
-    }
-
     const password = inferMemberPassword(memberId);
 
     const memberUser = await ensureAuthUser({
-      email,
+      email: synthEmail(memberId),
       password,
       full_name: full_name || memberId,
     });
@@ -205,7 +199,7 @@ async function main() {
     const { error: profErr } = await SUPABASE.from("profiles").upsert(
       {
         id: memberUser.id,
-        email,
+        email: synthEmail(memberId),
         full_name: full_name || memberId,
         phone: phone || null,
         address: address || "",
@@ -240,12 +234,9 @@ async function main() {
   const testAdminId = "admin123";
   const testMemberId = "member123";
 
-  const testAdminEmail = `${testAdminId}@srgym.local`;
-  const testMemberEmail = `${testMemberId}@srgym.local`;
-
   console.log("Creating test auth user: admin123...");
   const testAdminUser = await ensureAuthUser({
-    email: testAdminEmail,
+    email: synthEmail(testAdminId),
     password: "admintest",
     full_name: "Admin Test",
   });
@@ -253,7 +244,7 @@ async function main() {
 
   console.log("Creating test auth user: member123...");
   const testMemberUser = await ensureAuthUser({
-    email: testMemberEmail,
+    email: synthEmail(testMemberId),
     password: "membertest",
     full_name: "Member Test",
   });
@@ -263,33 +254,30 @@ async function main() {
   console.log("Populating auth table...");
 
   // Helper to insert into auth table
-  async function upsertAuth(userId: string, password: string, role: Role, email: string) {
+  async function upsertAuth(userId: string, password: string, role: Role) {
     await SUPABASE.from("auth").delete().eq("user_id", userId);
     const { error } = await SUPABASE.from("auth").insert({
       user_id: userId,
       password,
       role,
-      email,
     });
     if (error) throw error;
-    console.log(`  Auth entry: ${userId} / ${password} → ${email} (${role})`);
+    console.log(`  Auth entry: ${userId} / ${password} (${role})`);
   }
 
   // Admin entries
-  await upsertAuth(adminId, adminPassword, "admin", adminEmail);
-  await upsertAuth(testAdminId, "admintest", "admin", testAdminEmail);
+  await upsertAuth(adminId, adminPassword, "admin");
+  await upsertAuth(testAdminId, "admintest", "admin");
 
   // Member entries
-  await upsertAuth(testMemberId, "membertest", "member", testMemberEmail);
+  await upsertAuth(testMemberId, "membertest", "member");
 
   for (const r of rows) {
     const idNoRaw = cleanCell(r[COL_IDNO]);
     if (!idNoRaw) continue;
     const memberId = normalizeIdNo(idNoRaw);
-    const email = cleanCell(r[COL_EMAIL]);
-    if (!email) continue;
     const password = inferMemberPassword(memberId);
-    await upsertAuth(memberId, password, "member", email);
+    await upsertAuth(memberId, password, "member");
   }
 
   console.log("Seeding complete.");
