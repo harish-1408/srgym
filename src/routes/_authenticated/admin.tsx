@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import {
   Users, CreditCard, ClipboardList, Calendar, BellRing, Trophy, Search, Plus, Trash2,
   CheckCircle2, XCircle, Megaphone, Download, IndianRupee, TrendingUp, Activity, ShieldOff,
-  Eye, EyeOff, UserPlus,
+  Eye, EyeOff, UserPlus, Settings, Bell, MessageCircle, AlertTriangle, Clock, Send,
+  PhoneCall, Filter, ChevronDown,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
@@ -39,6 +40,11 @@ export const Route = createFileRoute("/_authenticated/admin")({
 function Admin() {
   return (
     <AppShell title="Admin Control" subtitle="Members, payments, attendance and more.">
+      {/* Settings button top-right */}
+      <div className="mb-4 flex justify-end">
+        <AdminSettingsDialog />
+      </div>
+
       <Tabs defaultValue="overview">
         <TabsList className="flex flex-wrap bg-muted">
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -68,7 +74,116 @@ function Admin() {
   );
 }
 
-/* ---------------- OVERVIEW ---------------- */
+/* ============================================================
+   ADMIN SETTINGS DIALOG — change password + edit profile
+   ============================================================ */
+function AdminSettingsDialog() {
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"profile" | "password">("profile");
+  const [profile, setProfile] = useState({ full_name: "", phone: "" });
+  const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    supabase.auth.getUser().then(({ data: u }) => {
+      if (!u.user) return;
+      supabase.from("profiles").select("full_name, phone").eq("id", u.user.id).single().then(({ data }) => {
+        if (data) setProfile({ full_name: data.full_name ?? "", phone: data.phone ?? "" });
+      });
+    });
+  }, [open]);
+
+  async function saveProfile() {
+    setLoading(true);
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) { setLoading(false); return; }
+    const { error } = await supabase.from("profiles").update({ full_name: profile.full_name, phone: profile.phone }).eq("id", u.user.id);
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("Profile updated");
+    setOpen(false);
+  }
+
+  async function changePassword() {
+    if (!pw.next || pw.next !== pw.confirm) return toast.error("Passwords don't match");
+    if (pw.next.length < 6) return toast.error("Password must be at least 6 characters");
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: pw.next });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("Password changed successfully");
+    setPw({ current: "", next: "", confirm: "" });
+    setOpen(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2">
+          <Settings className="h-4 w-4" /> Settings
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>Admin Settings</DialogTitle></DialogHeader>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+          <TabsList className="grid grid-cols-2">
+            <TabsTrigger value="profile">Edit Profile</TabsTrigger>
+            <TabsTrigger value="password">Change Password</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="profile" className="mt-4 space-y-3">
+            <div>
+              <Label>Full Name</Label>
+              <Input value={profile.full_name} onChange={(e) => setProfile({ ...profile, full_name: e.target.value })} placeholder="Your name" />
+            </div>
+            <div>
+              <Label>Phone</Label>
+              <Input value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} placeholder="9876543210" />
+            </div>
+            <Button onClick={saveProfile} disabled={loading} className="w-full bg-gradient-red text-primary-foreground">
+              {loading ? "Saving..." : "Save Profile"}
+            </Button>
+          </TabsContent>
+
+          <TabsContent value="password" className="mt-4 space-y-3">
+            <div>
+              <Label>New Password</Label>
+              <div className="relative">
+                <Input
+                  type={showPw ? "text" : "password"}
+                  value={pw.next}
+                  onChange={(e) => setPw({ ...pw, next: e.target.value })}
+                  placeholder="Min 6 characters"
+                />
+                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <div>
+              <Label>Confirm New Password</Label>
+              <Input
+                type={showPw ? "text" : "password"}
+                value={pw.confirm}
+                onChange={(e) => setPw({ ...pw, confirm: e.target.value })}
+                placeholder="Repeat password"
+              />
+            </div>
+            <Button onClick={changePassword} disabled={loading} className="w-full bg-gradient-red text-primary-foreground">
+              {loading ? "Updating..." : "Update Password"}
+            </Button>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================================================
+   OVERVIEW
+   ============================================================ */
 function Overview() {
   const { data: members = [] } = useQuery({
     queryKey: ["a-members"],
@@ -99,7 +214,7 @@ function Overview() {
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-4">
         <Stat icon={Users} label="Total members" value={members.length} sub={`${activeMembers} active · ${expiredMembers} expired`} />
-        <Stat icon={IndianRupee} label="Revenue (30d)" value={INR(revenue30)} sub={`${payments.filter(p=>p.status==='paid').length} paid invoices`} />
+        <Stat icon={IndianRupee} label="Revenue (30d)" value={INR(revenue30)} sub={`${payments.filter(p => p.status === 'paid').length} paid invoices`} />
         <Stat icon={Activity} label="Today's check-ins" value={todayAttendance} sub="live count" />
         <Stat icon={TrendingUp} label="Overdue payments" value={overdue} sub="needs follow-up" tone={overdue > 0 ? "danger" : "ok"} />
       </div>
@@ -130,101 +245,546 @@ function Stat({ icon: Icon, label, value, sub, tone = "ok" }: any) {
   );
 }
 
-/* ---------------- MEMBERS ---------------- */
+/* ============================================================
+   MEMBERS TAB — full dashboard with filters + send message
+   ============================================================ */
 function MembersTab() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [filter, setFilter] = useState<"all" | "active" | "expired" | "due7" | "due30" | "paid" | "unpaid">("all");
+
   const { data: members = [] } = useQuery({
     queryKey: ["mem-list", refreshKey],
     queryFn: async () => (await supabase.rpc("admin_get_members")).data ?? [],
   });
 
-  const filtered = members.filter((m: any) =>
-    !q || m.full_name?.toLowerCase().includes(q.toLowerCase()) || m.email?.toLowerCase().includes(q.toLowerCase()) || m.phone?.includes(q)
+  // Enrich members with computed fields
+  const enriched = useMemo(() => members.map((m: any) => {
+    const memberships: any[] = m.memberships ?? [];
+    const latest = memberships.sort((a: any, b: any) => (a.end_date < b.end_date ? 1 : -1))[0];
+    const daysLeft = latest ? daysBetween(latest.end_date) : null;
+    const isActive = daysLeft !== null && daysLeft >= 0;
+    const isExpired = daysLeft !== null && daysLeft < 0;
+    const isDue7 = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
+    const isDue30 = daysLeft !== null && daysLeft >= 0 && daysLeft <= 30;
+    const hasPaid = (m.payments ?? []).some((p: any) => p.status === "paid");
+    const hasUnpaid = (m.payments ?? []).some((p: any) => p.status === "pending" || p.status === "overdue");
+    return { ...m, latest, daysLeft, isActive, isExpired, isDue7, isDue30, hasPaid, hasUnpaid };
+  }), [members]);
+
+  const filtered = enriched.filter((m: any) => {
+    const matchQ = !q || m.full_name?.toLowerCase().includes(q.toLowerCase()) || m.email?.toLowerCase().includes(q.toLowerCase()) || m.phone?.includes(q);
+    if (!matchQ) return false;
+    if (filter === "active") return m.isActive;
+    if (filter === "expired") return m.isExpired;
+    if (filter === "due7") return m.isDue7;
+    if (filter === "due30") return m.isDue30;
+    if (filter === "paid") return m.hasPaid;
+    if (filter === "unpaid") return m.hasUnpaid;
+    return true;
+  });
+
+  // Summary counts
+  const counts = useMemo(() => ({
+    all: enriched.length,
+    active: enriched.filter((m: any) => m.isActive).length,
+    expired: enriched.filter((m: any) => m.isExpired).length,
+    due7: enriched.filter((m: any) => m.isDue7).length,
+    due30: enriched.filter((m: any) => m.isDue30).length,
+    paid: enriched.filter((m: any) => m.hasPaid).length,
+    unpaid: enriched.filter((m: any) => m.hasUnpaid).length,
+  }), [enriched]);
+
+  return (
+    <div className="space-y-5">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <SummaryChip label="Total" count={counts.all} color="default" onClick={() => setFilter("all")} active={filter === "all"} />
+        <SummaryChip label="Active" count={counts.active} color="green" onClick={() => setFilter("active")} active={filter === "active"} />
+        <SummaryChip label="Expired" count={counts.expired} color="red" onClick={() => setFilter("expired")} active={filter === "expired"} />
+        <SummaryChip label="Due in 7 days" count={counts.due7} color="orange" onClick={() => setFilter("due7")} active={filter === "due7"} />
+        <SummaryChip label="Due in 30 days" count={counts.due30} color="yellow" onClick={() => setFilter("due30")} active={filter === "due30"} />
+        <SummaryChip label="Fee Paid" count={counts.paid} color="green" onClick={() => setFilter("paid")} active={filter === "paid"} />
+        <SummaryChip label="Fee Unpaid" count={counts.unpaid} color="red" onClick={() => setFilter("unpaid")} active={filter === "unpaid"} />
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+          <CardTitle className="text-base">
+            Members <span className="text-muted-foreground font-normal text-sm">({filtered.length})</span>
+          </CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search name / email / phone" value={q} onChange={(e) => setQ(e.target.value)} className="w-56" />
+            </div>
+            <AddUserDialog onDone={() => setRefreshKey((k) => k + 1)} />
+            {/* Send to ALL button */}
+            <BroadcastWhatsAppDialog members={filtered} />
+            <Button variant="outline" size="sm" onClick={() => exportMembersCSV(filtered)}>
+              <Download className="mr-1.5 h-4 w-4" /> Export CSV
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="overflow-auto p-0">
+          <table className="w-full text-sm">
+            <thead className="bg-muted text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3 text-left">Name</th>
+                <th className="px-4 py-3 text-left">Phone</th>
+                <th className="px-4 py-3 text-left">Plan</th>
+                <th className="px-4 py-3 text-left">Expires</th>
+                <th className="px-4 py-3 text-left">Days Left</th>
+                <th className="px-4 py-3 text-left">Status</th>
+                <th className="px-4 py-3 text-left">Fee</th>
+                <th className="px-4 py-3 text-left">Last Check-in</th>
+                <th className="px-4 py-3 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((m: any) => {
+                const lastAttendance = (m.attendance ?? []).sort((a: any, b: any) => (a.date < b.date ? 1 : -1))[0];
+                return (
+                  <tr key={m.id} className="border-t border-border align-middle hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{m.full_name}</div>
+                      <div className="text-xs text-muted-foreground">{m.email}</div>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{m.phone ?? "—"}</td>
+                    <td className="px-4 py-3">{m.latest?.membership_plans?.name ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      {m.latest ? <span className="text-xs">{fmtDate(m.latest.end_date)}</span> : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {m.daysLeft === null ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : m.daysLeft < 0 ? (
+                        <span className="text-destructive font-medium">Expired</span>
+                      ) : m.daysLeft <= 7 ? (
+                        <span className="font-semibold text-orange-500">{m.daysLeft}d ⚠️</span>
+                      ) : m.daysLeft <= 30 ? (
+                        <span className="font-medium text-yellow-500">{m.daysLeft}d</span>
+                      ) : (
+                        <span className="text-green-500">{m.daysLeft}d</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {m.isActive
+                        ? <Badge variant="default" className="bg-green-600">Active</Badge>
+                        : m.isExpired
+                        ? <Badge variant="destructive">Expired</Badge>
+                        : <Badge variant="secondary">No plan</Badge>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {m.hasPaid && !m.hasUnpaid
+                        ? <Badge variant="default" className="bg-green-600 text-white">Paid</Badge>
+                        : m.hasUnpaid
+                        ? <Badge variant="destructive">Unpaid</Badge>
+                        : <Badge variant="secondary">—</Badge>}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {lastAttendance ? fmtDate(lastAttendance.date) : "Never"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <AssignDialog member={m} onDone={() => qc.invalidateQueries({ queryKey: ["mem-list"] })} />
+                        {/* Send individual message */}
+                        <SendMessageDialog member={m} />
+                        <DeleteBtn onConfirm={async () => {
+                          const { error } = await supabase.from("profiles").delete().eq("id", m.id);
+                          if (error) toast.error(error.message);
+                          else { toast.success("Member removed"); qc.invalidateQueries({ queryKey: ["mem-list"] }); }
+                        }} />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">No members found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+    </div>
   );
+}
+
+/* Small clickable chip for filter summary */
+function SummaryChip({ label, count, color, onClick, active }: any) {
+  const colorMap: Record<string, string> = {
+    default: "border-border",
+    green: "border-green-500",
+    red: "border-destructive",
+    orange: "border-orange-500",
+    yellow: "border-yellow-400",
+  };
+  const textMap: Record<string, string> = {
+    default: "text-foreground",
+    green: "text-green-500",
+    red: "text-destructive",
+    orange: "text-orange-500",
+    yellow: "text-yellow-500",
+  };
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-xl border-2 ${active ? colorMap[color] : "border-border"} bg-surface p-3 text-left transition-all hover:border-primary`}
+    >
+      <div className={`text-xl font-extrabold font-display ${active ? textMap[color] : "text-foreground"}`}>{count}</div>
+      <div className="text-xs text-muted-foreground mt-0.5">{label}</div>
+    </button>
+  );
+}
+
+/* ============================================================
+   SEND MESSAGE TO ONE MEMBER (Website + WhatsApp)
+   ============================================================ */
+function SendMessageDialog({ member }: { member: any }) {
+  const [open, setOpen] = useState(false);
+  const [msg, setMsg] = useState({ title: "", message: "", type: "info" });
+  const [loading, setLoading] = useState(false);
+
+  async function sendWebsite() {
+    if (!msg.title || !msg.message) return toast.error("Title and message are required");
+    setLoading(true);
+    const { error } = await supabase.from("notifications").insert({
+      user_id: member.id, title: msg.title, message: msg.message, type: msg.type,
+    });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("Notification sent on website");
+  }
+
+  function sendWhatsApp() {
+    if (!msg.message) return toast.error("Type a message first");
+    const phone = member.phone?.replace(/\D/g, "");
+    if (!phone) return toast.error("This member has no phone number saved");
+    const text = encodeURIComponent(`*${msg.title || "SRGYM"}*\n\n${msg.message}`);
+    window.open(`https://wa.me/91${phone}?text=${text}`, "_blank");
+  }
+
+  async function sendBoth() {
+    await sendWebsite();
+    sendWhatsApp();
+    setOpen(false);
+    setMsg({ title: "", message: "", type: "info" });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline" className="gap-1">
+          <MessageCircle className="h-3.5 w-3.5" /> Msg
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Send className="h-4 w-4" /> Message — {member.full_name}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Title</Label>
+            <Input value={msg.title} onChange={(e) => setMsg({ ...msg, title: e.target.value })} placeholder="e.g. Fee Reminder" />
+          </div>
+          <div>
+            <Label>Message</Label>
+            <Textarea rows={4} value={msg.message} onChange={(e) => setMsg({ ...msg, message: e.target.value })} placeholder="Type your message..." />
+          </div>
+          <div>
+            <Label>Type</Label>
+            <Select value={msg.type} onValueChange={(v) => setMsg({ ...msg, type: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="info">Info</SelectItem>
+                <SelectItem value="success">Success</SelectItem>
+                <SelectItem value="warning">Warning</SelectItem>
+                <SelectItem value="holiday">Holiday</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {member.phone && (
+            <p className="text-xs text-muted-foreground">
+              WhatsApp will open for: <span className="font-mono font-medium text-foreground">{member.phone}</span>
+            </p>
+          )}
+        </div>
+        <DialogFooter className="flex-col gap-2 sm:flex-row">
+          <Button variant="outline" onClick={sendWebsite} disabled={loading} className="gap-2 flex-1">
+            <Bell className="h-4 w-4" /> Website only
+          </Button>
+          <Button variant="outline" onClick={sendWhatsApp} className="gap-2 flex-1 border-green-500 text-green-600 hover:bg-green-50">
+            <PhoneCall className="h-4 w-4" /> WhatsApp only
+          </Button>
+          <Button onClick={sendBoth} disabled={loading} className="bg-gradient-red text-primary-foreground gap-2 flex-1">
+            <Send className="h-4 w-4" /> Send Both
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================================================
+   BROADCAST TO ALL MEMBERS in filtered list (WhatsApp + Website)
+   ============================================================ */
+function BroadcastWhatsAppDialog({ members }: { members: any[] }) {
+  const [open, setOpen] = useState(false);
+  const [msg, setMsg] = useState({ title: "", message: "", type: "info" });
+  const [loading, setLoading] = useState(false);
+  const [waIndex, setWaIndex] = useState<number | null>(null);
+
+  const membersWithPhone = members.filter((m: any) => m.phone);
+
+  async function sendWebsiteAll() {
+    if (!msg.title || !msg.message) return toast.error("Title and message are required");
+    setLoading(true);
+    // Insert one notification per member
+    const inserts = members.map((m: any) => ({
+      user_id: m.id, title: msg.title, message: msg.message, type: msg.type,
+    }));
+    // Also broadcast (null user_id = all)
+    inserts.push({ user_id: null, title: msg.title, message: msg.message, type: msg.type } as any);
+    const { error } = await supabase.from("notifications").insert(inserts);
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success(`Website notification sent to ${members.length} members`);
+  }
+
+  function openNextWhatsApp() {
+    const idx = waIndex === null ? 0 : waIndex + 1;
+    if (idx >= membersWithPhone.length) {
+      toast.success("All WhatsApp messages opened!");
+      setWaIndex(null);
+      return;
+    }
+    const m = membersWithPhone[idx];
+    const phone = m.phone?.replace(/\D/g, "");
+    const text = encodeURIComponent(`*${msg.title || "SRGYM"}*\n\n${msg.message}`);
+    window.open(`https://wa.me/91${phone}?text=${text}`, "_blank");
+    setWaIndex(idx);
+    toast.info(`Opened WhatsApp for ${m.full_name} (${idx + 1}/${membersWithPhone.length})`);
+  }
+
+  async function sendBothAll() {
+    await sendWebsiteAll();
+    openNextWhatsApp();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); setWaIndex(null); }}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline" className="gap-1.5 border-primary text-primary">
+          <Megaphone className="h-4 w-4" /> Message All ({members.length})
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Megaphone className="h-4 w-4 text-primary" />
+            Broadcast to {members.length} members
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="rounded-lg bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+          Sending to current filter: <span className="font-medium text-foreground">{members.length}</span> members
+          {membersWithPhone.length < members.length && (
+            <> · <span className="text-orange-500">{members.length - membersWithPhone.length} have no phone</span></>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <Label>Title</Label>
+            <Input value={msg.title} onChange={(e) => setMsg({ ...msg, title: e.target.value })} placeholder="e.g. Fee Due Reminder" />
+          </div>
+          <div>
+            <Label>Message</Label>
+            <Textarea rows={5} value={msg.message} onChange={(e) => setMsg({ ...msg, message: e.target.value })} placeholder="Type your broadcast message..." />
+          </div>
+          <div>
+            <Label>Type</Label>
+            <Select value={msg.type} onValueChange={(v) => setMsg({ ...msg, type: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="info">Info</SelectItem>
+                <SelectItem value="success">Success</SelectItem>
+                <SelectItem value="warning">Warning</SelectItem>
+                <SelectItem value="holiday">Holiday</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* WhatsApp progress */}
+        {waIndex !== null && (
+          <div className="rounded-lg border border-green-500/30 bg-green-50/10 px-4 py-3 text-sm">
+            <div className="font-medium text-green-600">
+              WhatsApp progress: {waIndex + 1} / {membersWithPhone.length}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Current: {membersWithPhone[waIndex]?.full_name}
+            </div>
+            <Button size="sm" onClick={openNextWhatsApp} className="mt-2 gap-2 bg-green-600 hover:bg-green-700 text-white">
+              <PhoneCall className="h-3.5 w-3.5" />
+              {waIndex + 1 < membersWithPhone.length
+                ? `Next → ${membersWithPhone[waIndex + 1]?.full_name}`
+                : "Mark as Done"}
+            </Button>
+          </div>
+        )}
+
+        <DialogFooter className="flex-col gap-2 sm:flex-row">
+          <Button variant="outline" onClick={sendWebsiteAll} disabled={loading} className="gap-2 flex-1">
+            <Bell className="h-4 w-4" /> Website only
+          </Button>
+          <Button variant="outline" onClick={() => { setWaIndex(null); openNextWhatsApp(); }} className="gap-2 flex-1 border-green-500 text-green-600 hover:bg-green-50" disabled={!msg.message}>
+            <PhoneCall className="h-4 w-4" /> WhatsApp only
+          </Button>
+          <Button onClick={sendBothAll} disabled={loading || !msg.title || !msg.message} className="bg-gradient-red text-primary-foreground gap-2 flex-1">
+            <Send className="h-4 w-4" /> Send Both
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ============================================================
+   BROADCAST TAB — now with WhatsApp + website
+   ============================================================ */
+function BroadcastTab() {
+  const { data: members = [] } = useQuery({
+    queryKey: ["broadcast-members"],
+    queryFn: async () => (await supabase.from("profiles").select("id, full_name, phone")).data ?? [],
+  });
+  const [form, setForm] = useState({ title: "", message: "", type: "info" });
+  const [loading, setLoading] = useState(false);
+  const [waIndex, setWaIndex] = useState<number | null>(null);
+
+  const membersWithPhone = members.filter((m: any) => m.phone);
+
+  async function sendWebsiteAll() {
+    if (!form.title || !form.message) return toast.error("Title & message required");
+    setLoading(true);
+    const { error } = await supabase.from("notifications").insert({ ...form, user_id: null });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("Website broadcast sent to all members");
+  }
+
+  function openNextWhatsApp() {
+    const idx = waIndex === null ? 0 : waIndex + 1;
+    if (idx >= membersWithPhone.length) {
+      toast.success("All WhatsApp messages opened!");
+      setWaIndex(null);
+      return;
+    }
+    const m = membersWithPhone[idx];
+    const phone = m.phone?.replace(/\D/g, "");
+    const text = encodeURIComponent(`*${form.title || "SRGYM"}*\n\n${form.message}`);
+    window.open(`https://wa.me/91${phone}?text=${text}`, "_blank");
+    setWaIndex(idx);
+  }
+
+  async function sendBoth() {
+    await sendWebsiteAll();
+    setWaIndex(null);
+    openNextWhatsApp();
+  }
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle className="text-base">Members</CardTitle>
-        <div className="flex items-center gap-2">
-          <div className="flex w-full max-w-xs items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search name / email / phone" value={q} onChange={(e) => setQ(e.target.value)} />
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Megaphone className="h-4 w-4 text-primary" /> Broadcast notification
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-lg bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{members.length}</span> members total ·{" "}
+          <span className="text-green-600 font-medium">{membersWithPhone.length}</span> have WhatsApp
+        </div>
+
+        <div><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
+        <div><Label>Message</Label><Textarea rows={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} /></div>
+        <div>
+          <Label>Type</Label>
+          <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="info">Info</SelectItem>
+              <SelectItem value="success">Success</SelectItem>
+              <SelectItem value="warning">Warning</SelectItem>
+              <SelectItem value="holiday">Holiday</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* WhatsApp progress tracker */}
+        {waIndex !== null && (
+          <div className="rounded-lg border border-green-500/40 bg-green-50/10 p-4 space-y-2">
+            <div className="text-sm font-semibold text-green-600">
+              WhatsApp: {waIndex + 1} / {membersWithPhone.length} sent
+            </div>
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-green-500 transition-all"
+                style={{ width: `${((waIndex + 1) / membersWithPhone.length) * 100}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Current: {membersWithPhone[waIndex]?.full_name}</p>
+            <Button size="sm" onClick={openNextWhatsApp} className="bg-green-600 hover:bg-green-700 text-white gap-2">
+              <PhoneCall className="h-3.5 w-3.5" />
+              {waIndex + 1 < membersWithPhone.length
+                ? `Open next → ${membersWithPhone[waIndex + 1]?.full_name}`
+                : "✓ Mark complete"}
+            </Button>
           </div>
-          <AddUserDialog onDone={() => setRefreshKey((k) => k + 1)} />
-          <Button variant="outline" size="sm" onClick={() => exportMembersCSV(filtered)}>
-            <Download className="mr-1.5 h-4 w-4" /> Export CSV
+        )}
+
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Button onClick={sendWebsiteAll} disabled={loading} variant="outline" className="gap-2">
+            <Bell className="h-4 w-4" /> Website only
+          </Button>
+          <Button
+            onClick={() => { setWaIndex(null); openNextWhatsApp(); }}
+            disabled={!form.message}
+            variant="outline"
+            className="gap-2 border-green-500 text-green-600 hover:bg-green-50"
+          >
+            <PhoneCall className="h-4 w-4" /> WhatsApp only
+          </Button>
+          <Button onClick={sendBoth} disabled={loading || !form.title || !form.message} className="bg-gradient-red text-primary-foreground gap-2">
+            <Send className="h-4 w-4" /> Send to all (Website + WhatsApp)
           </Button>
         </div>
-      </CardHeader>
-      <CardContent className="overflow-auto p-0">
-        <table className="w-full text-sm">
-          <thead className="bg-muted text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 text-left">Name</th>
-              <th className="px-4 py-3 text-left">Contact</th>
-              <th className="px-4 py-3 text-left">Plan</th>
-              <th className="px-4 py-3 text-left">Expires</th>
-              <th className="px-4 py-3 text-left">Joined</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((m: any) => {
-              const latest = m.memberships?.sort((a:any,b:any) => (a.end_date < b.end_date ? 1 : -1))[0];
-              const expired = latest ? daysBetween(latest.end_date) < 0 : true;
-              return (
-                <tr key={m.id} className="border-t border-border align-top">
-                  <td className="px-4 py-3 font-medium">{m.full_name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    <div>{m.email}</div>
-                    <div className="text-xs">{m.phone}</div>
-                  </td>
-                  <td className="px-4 py-3">{latest?.membership_plans?.name ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    {latest ? (
-                      <Badge variant={expired ? "destructive" : "default"}>{fmtDate(latest.end_date)}</Badge>
-                    ) : <Badge variant="secondary">none</Badge>}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{fmtDate(m.joined_at)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-1">
-                      <AssignDialog member={m} onDone={() => qc.invalidateQueries({ queryKey: ["mem-list"] })} />
-                      <DeleteBtn onConfirm={async () => {
-                        const { error } = await supabase.from("profiles").delete().eq("id", m.id);
-                        if (error) toast.error(error.message); else { toast.success("Member removed"); qc.invalidateQueries({ queryKey: ["mem-list"] }); }
-                      }} />
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No members.</td></tr>}
-          </tbody>
-        </table>
       </CardContent>
     </Card>
   );
 }
 
+/* ============================================================
+   REST OF TABS — unchanged from original
+   ============================================================ */
 function exportMembersCSV(members: any[]) {
   if (!members.length) return toast.info("Nothing to export");
-  const headers = ["Name", "Email", "Phone", "Plan", "Expires", "Status", "Joined"];
-  const rows = members.map((m: any) => {
-    const latest = m.memberships?.sort((a: any, b: any) => (a.end_date < b.end_date ? 1 : -1))[0];
-    const expired = latest ? daysBetween(latest.end_date) < 0 : true;
-    return [
-      m.full_name ?? "",
-      m.email ?? "",
-      m.phone ?? "",
-      latest?.membership_plans?.name ?? "—",
-      latest ? fmtDate(latest.end_date) : "—",
-      expired ? "Expired" : latest ? "Active" : "No plan",
-      fmtDate(m.joined_at),
-    ];
-  });
+  const headers = ["Name", "Email", "Phone", "Plan", "Expires", "Days Left", "Status", "Fee Status", "Joined"];
+  const rows = members.map((m: any) => [
+    m.full_name ?? "",
+    m.email ?? "",
+    m.phone ?? "",
+    m.latest?.membership_plans?.name ?? "—",
+    m.latest ? fmtDate(m.latest.end_date) : "—",
+    m.daysLeft !== null ? (m.daysLeft < 0 ? "Expired" : `${m.daysLeft}d`) : "—",
+    m.isActive ? "Active" : m.isExpired ? "Expired" : "No plan",
+    m.hasPaid && !m.hasUnpaid ? "Paid" : m.hasUnpaid ? "Unpaid" : "—",
+    fmtDate(m.joined_at),
+  ]);
   const csv = [headers.join(","), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
@@ -245,46 +805,26 @@ function AddUserDialog({ onDone }: { onDone: () => void }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!idNo || !password || !fullName) return toast.error("ID No, password, and name are required.");
-
     setLoading(true);
     const email = `${idNo.trim().toLowerCase()}@srgym.local`;
-
     try {
-      // 1. Save current admin session
       const { data: sessionData } = await supabase.auth.getSession();
       const adminToken = sessionData.session?.access_token;
       const adminRefresh = sessionData.session?.refresh_token;
       const adminUserId = sessionData.session?.user?.id;
       if (!adminToken) throw new Error("No admin session");
-
-      // 2. Create auth user via signUp (auto-confirmed since email confirm is disabled)
       const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-        email,
-        password,
+        email, password,
         options: { data: { full_name: fullName.trim(), phone: phone.trim() } },
       });
       if (signUpErr) throw signUpErr;
       if (!signUpData?.user) throw new Error("Signup returned no user");
-
-      // 3. Restore admin session and verify it worked
-      const { error: restoreErr } = await supabase.auth.setSession({
-        access_token: adminToken,
-        refresh_token: adminRefresh!,
-      });
+      const { error: restoreErr } = await supabase.auth.setSession({ access_token: adminToken, refresh_token: adminRefresh! });
       if (restoreErr) throw new Error(`Failed to restore admin session: ${restoreErr.message}`);
-
       const { data: verifySession } = await supabase.auth.getSession();
-      if (verifySession.session?.user?.id !== adminUserId)
-        throw new Error("Session was not properly restored");
-
-      // 4. Create auth mapping via RPC
-      const { error: rpcErr } = await supabase.rpc("admin_create_user", {
-        p_id_no: idNo.trim(),
-        p_password: password,
-        p_email: email,
-      });
+      if (verifySession.session?.user?.id !== adminUserId) throw new Error("Session was not properly restored");
+      const { error: rpcErr } = await supabase.rpc("admin_create_user", { p_id_no: idNo.trim(), p_password: password, p_email: email });
       if (rpcErr) throw rpcErr;
-
       toast.success(`User "${fullName}" created (ID: ${idNo})`);
       setOpen(false);
       setIdNo(""); setPassword(""); setFullName(""); setPhone("");
@@ -304,18 +844,9 @@ function AddUserDialog({ onDone }: { onDone: () => void }) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader><DialogTitle>Add new user</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="au-idno">ID No</Label>
-            <Input id="au-idno" value={idNo} onChange={(e) => setIdNo(e.target.value)} placeholder="e.g. newmember1" required />
-          </div>
-          <div>
-            <Label htmlFor="au-name">Full Name</Label>
-            <Input id="au-name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. John Doe" required />
-          </div>
-          <div>
-            <Label htmlFor="au-phone">Phone</Label>
-            <Input id="au-phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 9876543210" />
-          </div>
+          <div><Label htmlFor="au-idno">ID No</Label><Input id="au-idno" value={idNo} onChange={(e) => setIdNo(e.target.value)} placeholder="e.g. newmember1" required /></div>
+          <div><Label htmlFor="au-name">Full Name</Label><Input id="au-name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. John Doe" required /></div>
+          <div><Label htmlFor="au-phone">Phone</Label><Input id="au-phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 9876543210" /></div>
           <div>
             <Label htmlFor="au-pw">Password</Label>
             <div className="relative">
@@ -325,7 +856,7 @@ function AddUserDialog({ onDone }: { onDone: () => void }) {
               </button>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">Email will be auto-generated: <span className="font-mono">[idno]@srgym.local</span></p>
+          <p className="text-xs text-muted-foreground">Email: <span className="font-mono">[idno]@srgym.local</span></p>
           <Button type="submit" disabled={loading} className="w-full bg-gradient-red text-primary-foreground">
             {loading ? "Creating..." : "Create User"}
           </Button>
@@ -360,9 +891,7 @@ function AssignDialog({ member, onDone }: any) {
       user_id: member.id, plan_id: plan.id, start_date: start, end_date: endDate, status: "active",
     });
     if (error) return toast.error(error.message);
-    await supabase.from("payments").insert({
-      user_id: member.id, amount: plan.price, due_date: start, status: "pending",
-    });
+    await supabase.from("payments").insert({ user_id: member.id, amount: plan.price, due_date: start, status: "pending" });
     await supabase.from("notifications").insert({
       user_id: member.id, title: "Welcome aboard 🎉", message: `Your ${plan.name} membership is now active until ${endDate}.`, type: "success",
     });
@@ -436,7 +965,6 @@ function AssignDialog({ member, onDone }: any) {
   );
 }
 
-/* ---------------- PLANS ---------------- */
 function PlansTab() {
   const qc = useQueryClient();
   const { data: plans = [] } = useQuery({
@@ -506,7 +1034,6 @@ function PlansTab() {
   );
 }
 
-/* ---------------- PAYMENTS ---------------- */
 function PaymentsTab() {
   const qc = useQueryClient();
   const { data: payments = [] } = useQuery({
@@ -542,7 +1069,7 @@ function PaymentsTab() {
           <tbody>
             {payments.map((p: any) => (
               <tr key={p.id} className="border-t border-border">
-                <td className="px-4 py-3">{p.profiles?.full_name ?? p.user_id.slice(0,6)}</td>
+                <td className="px-4 py-3">{p.profiles?.full_name ?? p.user_id.slice(0, 6)}</td>
                 <td className="px-4 py-3 font-medium">{INR(p.amount)}</td>
                 <td className="px-4 py-3">{fmtDate(p.due_date)}</td>
                 <td className="px-4 py-3">
@@ -567,7 +1094,6 @@ function PaymentsTab() {
   );
 }
 
-/* ---------------- ATTENDANCE ---------------- */
 function AttendanceTab() {
   const { data: today = [] } = useQuery({
     queryKey: ["att-today"],
@@ -576,8 +1102,7 @@ function AttendanceTab() {
   });
   const { data: all = [] } = useQuery({
     queryKey: ["att-all"],
-    queryFn: async () =>
-      (await supabase.from("attendance").select("date")).data ?? [],
+    queryFn: async () => (await supabase.from("attendance").select("date")).data ?? [],
   });
 
   const byDay = useMemo(() => {
@@ -600,7 +1125,6 @@ function AttendanceTab() {
           {today.length === 0 && <p className="text-sm text-muted-foreground">No check-ins yet.</p>}
         </CardContent>
       </Card>
-
       <Card>
         <CardHeader><CardTitle className="text-base">Last 14 days</CardTitle></CardHeader>
         <CardContent>
@@ -618,7 +1142,6 @@ function AttendanceTab() {
   );
 }
 
-/* ---------------- LEAVES ---------------- */
 function LeavesTab() {
   const qc = useQueryClient();
   const { data: leaves = [] } = useQuery({
@@ -666,41 +1189,6 @@ function LeavesTab() {
   );
 }
 
-/* ---------------- BROADCAST ---------------- */
-function BroadcastTab() {
-  const [form, setForm] = useState({ title: "", message: "", type: "info" });
-  async function send() {
-    if (!form.title || !form.message) return toast.error("Title & message required");
-    const { error } = await supabase.from("notifications").insert({ ...form, user_id: null });
-    if (error) return toast.error(error.message);
-    toast.success("Broadcast sent to all members");
-    setForm({ title: "", message: "", type: "info" });
-  }
-  return (
-    <Card>
-      <CardHeader><CardTitle className="text-base flex items-center gap-2"><Megaphone className="h-4 w-4 text-primary" /> Broadcast notification</CardTitle></CardHeader>
-      <CardContent className="space-y-3">
-        <div><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
-        <div><Label>Message</Label><Textarea rows={4} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} /></div>
-        <div>
-          <Label>Type</Label>
-          <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="info">Info</SelectItem>
-              <SelectItem value="success">Success</SelectItem>
-              <SelectItem value="warning">Warning</SelectItem>
-              <SelectItem value="holiday">Holiday</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button onClick={send} className="bg-gradient-red text-primary-foreground">Send to all members</Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ---------------- HOLIDAYS ---------------- */
 function HolidaysTab() {
   const qc = useQueryClient();
   const { data: holidays = [] } = useQuery({
@@ -751,7 +1239,6 @@ function HolidaysTab() {
   );
 }
 
-/* ---------------- TRAINERS ---------------- */
 function TrainersTab() {
   const qc = useQueryClient();
   const { data: trainers = [] } = useQuery({
@@ -800,7 +1287,6 @@ function TrainersTab() {
   );
 }
 
-/* ---------------- CONTACT ---------------- */
 function ContactTab() {
   const qc = useQueryClient();
   const { data: msgs = [] } = useQuery({
@@ -826,7 +1312,6 @@ function ContactTab() {
   );
 }
 
-/* ---------------- helpers ---------------- */
 function DeleteBtn({ onConfirm }: { onConfirm: () => void | Promise<void> }) {
   return (
     <Button size="icon" variant="ghost" onClick={() => { if (confirm("Delete? This cannot be undone.")) onConfirm(); }}>
@@ -844,6 +1329,6 @@ function exportCSV(filename: string, rows: any[]) {
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = `${filename}-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  a.href = url; a.download = `${filename}-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
   URL.revokeObjectURL(url);
 }
