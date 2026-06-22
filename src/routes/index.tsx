@@ -52,7 +52,7 @@ function Home() {
 
   return (
     <div>
-      {/* HERO */}
+      
       <section className="relative isolate overflow-hidden">
         <div className="absolute inset-0 -z-10">
           <img src={hero} alt="" className="h-full w-full object-cover opacity-50" width={1920} height={1080} />
@@ -70,12 +70,12 @@ function Home() {
               <span className="text-gradient-red">Transform Your Life.</span>
             </h1>
             <p className="mt-6 max-w-xl text-base text-muted-foreground sm:text-lg">
-              SRGYM AND FITNESS CENTRE is where serious lifters and beginners alike build strength,
+              SR GYM AND FITNESS CENTRE is where serious lifters and beginners alike build strength,
               confidence and lasting results — under one roof.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg" className="bg-gradient-red text-primary-foreground shadow-red hover:opacity-90">
-                <Link to="/auth">Join Now <ArrowRight className="ml-1 h-4 w-4" /></Link>
+                <Link to="/auth">Login<ArrowRight className="ml-1 h-4 w-4" /></Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="border-border bg-background/40 backdrop-blur">
                 <Link to="/plans">Membership Plans</Link>
@@ -101,7 +101,7 @@ function Home() {
       <section className="border-t border-border/50 bg-surface/30 py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-widest text-primary">Why SRGYM</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary">Why SR GYM</p>
             <h2 className="mt-2 font-display text-4xl font-extrabold sm:text-5xl">Built for those who don't quit.</h2>
           </div>
 
@@ -121,82 +121,124 @@ function Home() {
             ))}
           </div>
         </div>
-      </section>
+      </section>     
+      {/* PLANS */}
+     <section className="border-y border-border/50 bg-surface/30 py-24">
+  <div className="mx-auto max-w-7xl px-4 sm:px-6">
+    <div className="max-w-2xl">
+      <p className="text-xs font-semibold uppercase tracking-widest text-primary">Membership</p>
+      <h2 className="mt-2 font-display text-4xl font-extrabold sm:text-5xl">Pick your plan. Start lifting.</h2>
+    </div>
+    <div className="mt-12 grid gap-6 md:grid-cols-4">
+      {[
+        {
+          id: "monthly",
+          name: "Monthly",
+          duration_months: 1,
+          price: 1000,
+          featured: false,
+          features: [
+            "Full gym access",
+          
+            "Free weights & machines",
+            "Cancel anytime",
+          ],
+        },
+        {
+          id: "quarterly",
+          name: "Quarterly",
+          duration_months: 3,
+          price: 2800,
+          featured: false,
+          features: [
+            "Full gym access",
+          
+            "Free weights & machines",
+            "Save ₹200 vs monthly",
+          ],
+        },
+        {
+          id: "biannual",
+          name: "6 Months",
+          duration_months: 6,
+          price: 4500,
+          featured: true,
+          features: [
+            "Full gym access",
+            
+            "Free weights & machines",
+            
+            "Save ₹1,500 vs monthly",
+          ],
+        },
+        {
+          id: "annual",
+          name: "Annual",
+          duration_months: 12,
+          price: 8000,
+          featured: false,
+          features: [
+            "Full gym access",
+            
+            "Free weights & machines",
+          
+            
+            "Save ₹4,000 vs monthly",
+          ],
+        },
+      ].map((p) => {
+        const INR = (amount: number) =>
+          new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+            maximumFractionDigits: 0,
+          }).format(amount);
 
-      {/* TRAINERS */}
-      <section className="py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex items-end justify-between gap-6">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-primary">Featured Trainers</p>
-              <h2 className="mt-2 font-display text-4xl font-extrabold sm:text-5xl">Coached by the best.</h2>
+        return (
+          <div
+            key={p.id}
+            className={`relative rounded-2xl p-7 ${
+              p.featured
+                ? "border-2 border-primary bg-surface shadow-red"
+                : "border border-border bg-surface"
+            }`}
+          >
+            {p.featured && (
+              <span className="absolute -top-3 left-7 rounded-full bg-gradient-red px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary-foreground">
+                Most popular
+              </span>
+            )}
+            <h3 className="font-display text-2xl font-extrabold">{p.name}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {p.duration_months} month{p.duration_months > 1 ? "s" : ""}
+            </p>
+            <div className="mt-5 flex items-baseline gap-1">
+              <span className="font-display text-4xl font-extrabold">{INR(p.price)}</span>
             </div>
-            <Button asChild variant="ghost" className="hidden sm:inline-flex">
-              <Link to="/trainers">View all <ArrowRight className="ml-1 h-4 w-4" /></Link>
+            <ul className="mt-6 space-y-2.5">
+              {p.features.map((f) => (
+                <li key={f} className="flex gap-2 text-sm">
+                  <Check className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                  <span>{f}</span>
+                </li>
+              ))}
+            </ul>
+            <Button
+              asChild
+              className={`mt-7 w-full ${
+                p.featured
+                  ? "bg-gradient-red text-primary-foreground"
+                  : "bg-surface border border-border"
+              }`}
+            >
+              <Link to="/auth">Get started</Link>
             </Button>
           </div>
-
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
-            {(trainers ?? []).map((t) => (
-              <div key={t.id} className="group overflow-hidden rounded-xl border border-border bg-surface transition hover:border-primary/40">
-                <div className="aspect-[4/5] overflow-hidden bg-muted">
-                  <img src={t.photo_url ?? ""} alt={t.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-                </div>
-                <div className="p-5">
-                  <h3 className="font-display text-xl font-bold">{t.name}</h3>
-                  <p className="mt-1 text-sm text-primary">{t.specialty}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">{t.experience_years}+ years experience</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* PLANS */}
-      <section className="border-y border-border/50 bg-surface/30 py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-widest text-primary">Membership</p>
-            <h2 className="mt-2 font-display text-4xl font-extrabold sm:text-5xl">Pick your plan. Start lifting.</h2>
-          </div>
-
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {(plans ?? []).map((p, i) => {
-              const featured = i === 1;
-              const feats = Array.isArray(p.features) ? (p.features as string[]) : [];
-              return (
-                <div
-                  key={p.id}
-                  className={`relative rounded-2xl p-7 ${featured ? "border-2 border-primary bg-surface shadow-red" : "border border-border bg-surface"}`}
-                >
-                  {featured && (
-                    <span className="absolute -top-3 left-7 rounded-full bg-gradient-red px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary-foreground">
-                      Most popular
-                    </span>
-                  )}
-                  <h3 className="font-display text-2xl font-extrabold">{p.name}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{p.duration_months} month{p.duration_months > 1 ? "s" : ""}</p>
-                  <div className="mt-5 flex items-baseline gap-1">
-                    <span className="font-display text-4xl font-extrabold">{INR(p.price)}</span>
-                  </div>
-                  <ul className="mt-6 space-y-2.5">
-                    {feats.map((f) => (
-                      <li key={f} className="flex gap-2 text-sm">
-                        <Check className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button asChild className={`mt-7 w-full ${featured ? "bg-gradient-red text-primary-foreground" : "bg-surface border border-border"}`}>
-                    <Link to="/auth">Get started</Link>
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+        );
+      })}
+    </div>
+  </div>
+</section>
 
       {/* TESTIMONIALS */}
       <section className="py-24">

@@ -47,7 +47,7 @@ function Contact() {
 
     // WhatsApp integration: open WhatsApp with a pre-filled message.
     // (We still keep Supabase code off for now to match the requirement.)
-    const whatsappNumber = "8122147725";
+    const whatsappNumber = "8072287744";
     const phone = parsed.data.phone?.trim() || "";
     const text = [
       `Name: ${parsed.data.name}`,

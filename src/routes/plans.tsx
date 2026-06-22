@@ -1,7 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { Check } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { INR } from "@/lib/format";
 
@@ -16,16 +14,97 @@ export const Route = createFileRoute("/plans")({
   }),
   component: Plans,
 });
+const PLANS = [
+  {
+    id: "monthly",
+    name: "Monthly",
+    duration_months: 1,
+    price: 1000,
+    featured: false,
+    features: [
+      "Full gym access",
+      "Free weights & machines",
+      "Cancel anytime",
+    ],
+  },
+  {
+    id: "quarterly",
+    name: "Quarterly",
+    duration_months: 3,
+    price: 2800,
+    featured: false,
+    features: [
+      "Full gym access",
+      "Free weights & machines",
+      "Save ₹200 vs monthly",
+    ],
+  },
+  {
+    id: "biannual",
+    name: "6 Months",
+    duration_months: 6,
+    price: 4500,
+    featured: true,
+    features: [
+      "Full gym access",
+      "Free weights & machines",
+      "Save ₹1,500 vs monthly",
+    ],
+  },
+  {
+    id: "annual",
+    name: "Annual",
+    duration_months: 12,
+    price: 8000,
+    featured: false,
+    features: [
+      "Full gym access",
+      "Free weights & machines",
+      "Save ₹4,000 vs monthly",
+    ],
+  },
+];
+
+function PlanCard({ p }: { p: typeof PLANS[number] }) {
+  const cardClass = p.featured
+    ? "relative rounded-2xl p-7 border-2 border-primary bg-surface shadow-red"
+    : "relative rounded-2xl p-7 border border-border bg-surface";
+
+  const btnClass = p.featured
+    ? "mt-7 w-full bg-gradient-red text-primary-foreground"
+    : "mt-7 w-full border border-border";
+
+  return (
+    <div className={cardClass}>
+      {p.featured && (
+        <span className="absolute -top-3 left-7 rounded-full bg-gradient-red px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary-foreground">
+          Most popular
+        </span>
+      )}
+      <h3 className="font-display text-2xl font-extrabold">{p.name}</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {p.duration_months} month{p.duration_months > 1 ? "s" : ""}
+      </p>
+      <div className="mt-5 flex items-baseline gap-1">
+        <span className="font-display text-4xl font-extrabold">{INR(p.price)}</span>
+        <span className="text-sm text-muted-foreground">/{p.duration_months}mo</span>
+      </div>
+      <ul className="mt-6 space-y-2.5">
+        {p.features.map((f) => (
+          <li key={f} className="flex gap-2 text-sm">
+            <Check className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+      <Button asChild className={btnClass}>
+        <Link to="/auth">Join {p.name}</Link>
+      </Button>
+    </div>
+  );
+}
 
 function Plans() {
-  const { data: plans = [] } = useQuery({
-    queryKey: ["plans"],
-    queryFn: async () => {
-      const { data } = await supabase.from("membership_plans").select("*").eq("is_active", true).order("price");
-      return data ?? [];
-    },
-  });
-
   return (
     <div>
       <section className="border-b border-border/50 bg-gradient-dark py-20">
@@ -41,37 +120,10 @@ function Plans() {
       </section>
 
       <section className="py-20">
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 md:grid-cols-3">
-          {plans.map((p, i) => {
-            const featured = i === 1;
-            const feats = Array.isArray(p.features) ? (p.features as string[]) : [];
-            return (
-              <div key={p.id} className={`relative rounded-2xl p-7 ${featured ? "border-2 border-primary bg-surface shadow-red" : "border border-border bg-surface"}`}>
-                {featured && (
-                  <span className="absolute -top-3 left-7 rounded-full bg-gradient-red px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary-foreground">
-                    Most popular
-                  </span>
-                )}
-                <h3 className="font-display text-2xl font-extrabold">{p.name}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{p.duration_months} month{p.duration_months > 1 ? "s" : ""}</p>
-                <div className="mt-5 flex items-baseline gap-1">
-                  <span className="font-display text-4xl font-extrabold">{INR(p.price)}</span>
-                  <span className="text-sm text-muted-foreground">/{p.duration_months}mo</span>
-                </div>
-                <ul className="mt-6 space-y-2.5">
-                  {feats.map((f) => (
-                    <li key={f} className="flex gap-2 text-sm">
-                      <Check className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button asChild className={`mt-7 w-full ${featured ? "bg-gradient-red text-primary-foreground" : "border border-border"}`}>
-                  <Link to="/auth">Join {p.name}</Link>
-                </Button>
-              </div>
-            );
-          })}
+       <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 md:grid-cols-4">
+          {PLANS.map((p) => (
+            <PlanCard key={p.id} p={p} />
+          ))}
         </div>
       </section>
     </div>

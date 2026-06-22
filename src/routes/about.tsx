@@ -4,7 +4,7 @@ import { Award, Heart, Target } from "lucide-react";
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "About — SRGYM AND FITNESS CENTRE" },
+      { title: "About — SR GYM AND FITNESS CENTRE" },
       { name: "description", content: "Learn the story behind SRGYM — a premium strength and fitness centre built for serious results." },
       { property: "og:title", content: "About SRGYM" },
       { property: "og:description", content: "Built by lifters, for lifters." },
@@ -23,7 +23,7 @@ function About() {
             Built by lifters. <span className="text-gradient-red">For lifters.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-muted-foreground">
-            SRGYM AND FITNESS CENTRE opened in 2018 with one mission — to give our city a serious
+            SR GYM AND FITNESS CENTRE opened in 2019 with one mission — to give our city a serious
             strength facility with world-class coaching and a no-ego, all-effort culture.
           </p>
         </div>
@@ -60,10 +60,9 @@ function About() {
           </div>
           <dl className="grid grid-cols-2 gap-6">
             {[
-              { k: "1,200+", v: "Active members" },
-              { k: "15+", v: "Certified coaches" },
-              { k: "240+", v: "Transformations" },
-              { k: "4.9★", v: "Member rating" },
+              { k: "300+", v: "Active members" },
+              { k: "190+", v: "Transformations" },
+              { k: "4.8★", v: "Member rating" },
             ].map((s) => (
               <div key={s.v} className="rounded-xl border border-border bg-surface p-6">
                 <dt className="font-display text-4xl font-extrabold text-gradient-red">{s.k}</dt>

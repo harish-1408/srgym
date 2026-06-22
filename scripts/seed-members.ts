@@ -7,6 +7,11 @@ type Role = "admin" | "member" | "trainer";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Avoid logging secrets
+// console.log(process.env.SUPABASE_SERVICE_ROLE_KEY);
+// console.log(process.env.SUPABASE_URL);
+
+
 
 if (!SUPABASE_URL) {
   console.error("Missing env: SUPABASE_URL");

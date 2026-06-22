@@ -9,7 +9,6 @@ const nav = [
   { to: "/", label: "Home" },
   { to: "/about", label: "About" },
   { to: "/plans", label: "Plans" },
-  { to: "/trainers", label: "Trainers" },
   { to: "/stories", label: "Stories" },
   { to: "/contact", label: "Contact" },
 ] as const;
@@ -25,7 +24,7 @@ export function SiteHeader() {
         <Link to="/" className="flex items-center gap-2.5">
           <img src={logo} alt="SR GYM" className="h-9 w-9 rounded-md object-cover" />
           <span className="font-display text-base font-extrabold tracking-tight">
-            SR<span className="text-primary">GYM</span>
+            SR <span className="text-primary"> GYM</span>
           </span>
         </Link>
 
@@ -66,11 +65,7 @@ export function SiteHeader() {
               <Button asChild variant="ghost" size="sm">
                 <Link to="/auth">Login</Link>
               </Button>
-              <Button asChild size="sm" className="bg-gradient-red text-primary-foreground shadow-red hover:opacity-90">
-                <Link to="/auth">
-                  Join Now
-                </Link>
-              </Button>
+              
             </>
           )}
         </div>
